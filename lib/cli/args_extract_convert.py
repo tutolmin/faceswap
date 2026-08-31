@@ -381,59 +381,59 @@ class ExtractArgs(ExtractConvertArgs):
         argument_list.append({
             "opts": ("--min-yaw",),
             "action": Slider,
-            "min_max": (0.0, 180.0),
+            "min_max": (-90.0, 90.0),
             "rounding": 1,
             "type": float,
             "dest": "min_yaw",
-            "default": 0.0,
+            "default": -90.0,
             "group": _("output"),
             "help": _(
                 "Filter out faces with yaw angle below this value (in degrees). Yaw represents "
-                "horizontal head rotation. Values range from 0 to 180 degrees (0 = face rotated "
-                "fully to the left, 90 = facing straight ahead, 180 = rotated fully to the "
-                "right). Default: 0 (no filtering).")})
+                "horizontal head rotation. Values range from -90 to +90 degrees (-90 = face rotated "
+                "fully to the left, 0 = facing straight ahead, +90 = rotated fully to the "
+                "right). Default: -90 (no filtering).")})
         argument_list.append({
             "opts": ("--max-yaw",),
             "action": Slider,
-            "min_max": (0.0, 180.0),
+            "min_max": (-90.0, 90.0),
             "rounding": 1,
             "type": float,
             "dest": "max_yaw",
-            "default": 180.0,
+            "default": 90.0,
             "group": _("output"),
             "help": _(
                 "Filter out faces with yaw angle above this value (in degrees). Yaw represents "
-                "horizontal head rotation. Values range from 0 to 180 degrees (0 = face rotated "
-                "fully to the left, 90 = facing straight ahead, 180 = rotated fully to the "
-                "right). Default: 180 (no filtering).")})
+                "horizontal head rotation. Values range from -90 to +90 degrees (-90 = face rotated "
+                "fully to the left, 0 = facing straight ahead, +90 = rotated fully to the "
+                "right). Default: 90 (no filtering).")})
         argument_list.append({
             "opts": ("--min-pitch",),
             "action": Slider,
-            "min_max": (0.0, 180.0),
+            "min_max": (-90.0, 90.0),
             "rounding": 1,
             "type": float,
             "dest": "min_pitch",
-            "default": 0.0,
+            "default": -90.0,
             "group": _("output"),
             "help": _(
                 "Filter out faces with pitch angle below this value (in degrees). Pitch "
-                "represents vertical head rotation. Values range from 0 to 180 degrees (0 = face "
-                "rotated fully down, 90 = facing straight ahead, 180 = rotated fully up). "
-                "Default: 0 (no filtering).")})
+                "represents vertical head rotation. Values range from -90 to +90 degrees (-90 = face "
+                "rotated fully up, 0 = facing straight ahead, +90 = rotated fully down). "
+                "Default: -90 (no filtering).")})
         argument_list.append({
             "opts": ("--max-pitch",),
             "action": Slider,
-            "min_max": (0.0, 180.0),
+            "min_max": (-90.0, 90.0),
             "rounding": 1,
             "type": float,
             "dest": "max_pitch",
-            "default": 180.0,
+            "default": 90.0,
             "group": _("output"),
             "help": _(
                 "Filter out faces with pitch angle above this value (in degrees). Pitch "
-                "represents vertical head rotation. Values range from 0 to 180 degrees (0 = face "
-                "rotated fully down, 90 = facing straight ahead, 180 = rotated fully up). "
-                "Default: 180 (no filtering).")})
+                "represents vertical head rotation. Values range from -90 to +90 degrees (-90 = face "
+                "rotated fully up, 0 = facing straight ahead, +90 = rotated fully down). "
+                "Default: 90 (no filtering).")})
         argument_list.append({
             "opts": ("-v", "--save-interval"),
             "action": Slider,

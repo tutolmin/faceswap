@@ -746,21 +746,25 @@ class Output:  # pylint:disable=too-many-instance-attributes
     debug_landmarks
         ``True`` to annotate the output images with debug data
     min_yaw
-        The minimum yaw angle, in degrees, in the range 0 to 180 (0 = rotated fully to the left,
-        90 = facing straight ahead, 180 = rotated fully to the right) for a face to be kept. Faces
-        with a yaw below this value will be filtered out. Default: ``0`` (no filtering)
+        The minimum yaw angle, in degrees, in the range -90 to +90 (-90 = rotated fully to
+        the left, 0 = facing straight ahead, +90 = rotated fully to the right) for a face
+        to be kept. Faces with a yaw below this value will be filtered out.
+        Default: ``-90`` (no filtering)
     max_yaw
-        The maximum yaw angle, in degrees, in the range 0 to 180 (0 = rotated fully to the left,
-        90 = facing straight ahead, 180 = rotated fully to the right) for a face to be kept. Faces
-        with a yaw above this value will be filtered out. Default: ``180`` (no filtering)
+        The maximum yaw angle, in degrees, in the range -90 to +90 (-90 = rotated fully to
+        the left, 0 = facing straight ahead, +90 = rotated fully to the right) for a face
+        to be kept. Faces with a yaw above this value will be filtered out.
+        Default: ``90`` (no filtering)
     min_pitch
-        The minimum pitch angle, in degrees, in the range 0 to 180 (0 = rotated fully down,
-        90 = facing straight ahead, 180 = rotated fully up) for a face to be kept. Faces with a
-        pitch below this value will be filtered out. Default: ``0`` (no filtering)
+        The minimum pitch angle, in degrees, in the range -90 to +90 (-90 = rotated fully
+        up, 0 = facing straight ahead, +90 = rotated fully down) for a face to be kept.
+        Faces with a pitch below this value will be filtered out. Default: ``-90`` (no
+        filtering)
     max_pitch
-        The maximum pitch angle, in degrees, in the range 0 to 180 (0 = rotated fully down,
-        90 = facing straight ahead, 180 = rotated fully up) for a face to be kept. Faces with a
-        pitch above this value will be filtered out. Default: ``180`` (no filtering)
+        The maximum pitch angle, in degrees, in the range -90 to +90 (-90 = rotated fully
+        up, 0 = facing straight ahead, +90 = rotated fully down) for a face to be kept.
+        Faces with a pitch above this value will be filtered out. Default: ``90`` (no
+        filtering)
     """
     def __init__(self,
                  pipeline: ExtractRunner,
@@ -770,10 +774,10 @@ class Output:  # pylint:disable=too-many-instance-attributes
                  batches: list[BatchInfo],
                  save_interval: int,
                  debug_landmarks: bool,
-                 min_yaw: float = 0.0,
-                 max_yaw: float = 180.0,
-                 min_pitch: float = 0.0,
-                 max_pitch: float = 180.0) -> None:
+                 min_yaw: float = -90.0,
+                 max_yaw: float = 90.0,
+                 min_pitch: float = -90.0,
+                 max_pitch: float = 90.0) -> None:
         logger.debug(parse_class_init(locals()))
         self._pipeline = pipeline
         self._size = size
@@ -789,12 +793,10 @@ class Output:  # pylint:disable=too-many-instance-attributes
         self._align = {"padding": round((size * EXTRACT_RATIOS["head"]) / 2),
                        "padding_thumbnail": round((96 * EXTRACT_RATIOS["head"]) / 2),
                        "empty_faces": np.empty((0, size, size, 3), dtype=np.uint8)}
-        # Convert the 0 to 180 degree range (matching the sort tool's display semantic) into the
-        # -90 to +90 degree internal range used by the pose estimation
         min_yaw, max_yaw = min(min_yaw, max_yaw), max(min_yaw, max_yaw)
         min_pitch, max_pitch = min(min_pitch, max_pitch), max(min_pitch, max_pitch)
-        self._yaw_range = (min_yaw - 90.0, max_yaw - 90.0)
-        self._pitch_range = (min_pitch - 90.0, max_pitch - 90.0)
+        self._yaw_range = (min_yaw, max_yaw)
+        self._pitch_range = (min_pitch, max_pitch)
 
     @classmethod
     def _get_min_size(cls, extract_size: int, min_scale: int) -> int:
