@@ -108,7 +108,11 @@ class Extract:
                               args.min_scale,
                               self._batches,
                               args.save_interval,
-                              args.debug_landmarks)
+                              args.debug_landmarks,
+                              min_yaw=args.min_yaw,
+                              max_yaw=args.max_yaw,
+                              min_pitch=args.min_pitch,
+                              max_pitch=args.max_pitch)
 
     @classmethod
     def _get_input_locations(cls, input_location: str, batch_mode: bool) -> list[str]:
@@ -741,6 +745,22 @@ class Output:  # pylint:disable=too-many-instance-attributes
         How often to save the alignments file
     debug_landmarks
         ``True`` to annotate the output images with debug data
+    min_yaw
+        The minimum yaw angle, in degrees, in the range 0 to 180 (0 = rotated fully to the left,
+        90 = facing straight ahead, 180 = rotated fully to the right) for a face to be kept. Faces
+        with a yaw below this value will be filtered out. Default: ``0`` (no filtering)
+    max_yaw
+        The maximum yaw angle, in degrees, in the range 0 to 180 (0 = rotated fully to the left,
+        90 = facing straight ahead, 180 = rotated fully to the right) for a face to be kept. Faces
+        with a yaw above this value will be filtered out. Default: ``180`` (no filtering)
+    min_pitch
+        The minimum pitch angle, in degrees, in the range 0 to 180 (0 = rotated fully down,
+        90 = facing straight ahead, 180 = rotated fully up) for a face to be kept. Faces with a
+        pitch below this value will be filtered out. Default: ``0`` (no filtering)
+    max_pitch
+        The maximum pitch angle, in degrees, in the range 0 to 180 (0 = rotated fully down,
+        90 = facing straight ahead, 180 = rotated fully up) for a face to be kept. Faces with a
+        pitch above this value will be filtered out. Default: ``180`` (no filtering)
     """
     def __init__(self,
                  pipeline: ExtractRunner,
@@ -749,7 +769,11 @@ class Output:  # pylint:disable=too-many-instance-attributes
                  min_scale: int,
                  batches: list[BatchInfo],
                  save_interval: int,
-                 debug_landmarks: bool) -> None:
+                 debug_landmarks: bool,
+                 min_yaw: float = 0.0,
+                 max_yaw: float = 180.0,
+                 min_pitch: float = 0.0,
+                 max_pitch: float = 180.0) -> None:
         logger.debug(parse_class_init(locals()))
         self._pipeline = pipeline
         self._size = size
@@ -760,10 +784,17 @@ class Output:  # pylint:disable=too-many-instance-attributes
         self._outputs = self._get_outputs(output_folder)
         self._thread = FSThread(self._process, name="ExtractOutput")
         self._debug = DebugLandmarks(size) if debug_landmarks else None
-        self._counts = {"verify": False, "faces": 0, "scale_skip": 0}
+        self._counts = {"verify": False, "faces": 0, "scale_skip": 0,
+                        "pose_skip": 0, "pose_total": 0}
         self._align = {"padding": round((size * EXTRACT_RATIOS["head"]) / 2),
                        "padding_thumbnail": round((96 * EXTRACT_RATIOS["head"]) / 2),
                        "empty_faces": np.empty((0, size, size, 3), dtype=np.uint8)}
+        # Convert the 0 to 180 degree range (matching the sort tool's display semantic) into the
+        # -90 to +90 degree internal range used by the pose estimation
+        min_yaw, max_yaw = min(min_yaw, max_yaw), max(min_yaw, max_yaw)
+        min_pitch, max_pitch = min(min_pitch, max_pitch), max(min_pitch, max_pitch)
+        self._yaw_range = (min_yaw - 90.0, max_yaw - 90.0)
+        self._pitch_range = (min_pitch - 90.0, max_pitch - 90.0)
 
     @classmethod
     def _get_min_size(cls, extract_size: int, min_scale: int) -> int:
@@ -838,6 +869,7 @@ class Output:  # pylint:disable=too-many-instance-attributes
                     basename: str,
                     meta: list[PNGAlignments],
                     frame_size: tuple[int, int],
+                    pose_mask: npt.NDArray[np.bool_],
                     alignments_version: float,
                     is_video: bool) -> None:
         """Encode the aligned faces with PNG Header information and save to disk
@@ -854,6 +886,9 @@ class Output:  # pylint:disable=too-many-instance-attributes
             The meta data to add to each of the PNG headers
         frame_size
             The (height, width) of the original frame
+        pose_mask
+            Boolean mask of faces to save based on the yaw and pitch ranges. ``True`` for faces
+            to output to disk
         alignments_version
             The current alignments file version
         is_video
@@ -862,9 +897,12 @@ class Output:  # pylint:disable=too-many-instance-attributes
         if self._saver is None:
             return
         split_name = os.path.splitext(basename)[0]
-        for idx, (face, data, save) in enumerate(zip(faces, meta, self._should_output(matrices))):
+        scale_mask = self._should_output(matrices)
+        output = scale_mask & pose_mask
+        for idx, (face, data, save) in enumerate(zip(faces, meta, output)):
             if not save:
-                self._counts["scale_skip"] += 1
+                if not scale_mask[idx]:
+                    self._counts["scale_skip"] += 1
                 continue
             img_name = f"{split_name}_{idx}.png"
             header = PNGHeader(alignments=data,
@@ -919,6 +957,58 @@ class Output:  # pylint:disable=too-many-instance-attributes
                       for t in thumbs]
         return faces, thumbnails
 
+    def _get_pose_keep_mask(self, media: FrameFaces) -> npt.NDArray[np.bool_]:
+        """Calculate which faces should be output to disk based on their yaw and pitch angles
+
+        Faces that fall outside of the configured yaw and pitch ranges are not saved to disk, but
+        are still retained within the alignment data.
+
+        Parameters
+        ----------
+        media
+            The FrameFaces object output from the extraction pipeline
+
+        Returns
+        -------
+        npt.NDArray[np.bool_]
+            A boolean mask of size ``(len(media), )`` with ``True`` for each face that falls
+            within the configured yaw and pitch ranges
+        """
+        rot = media.aligned.rotation
+        if not rot.size:
+            return np.empty(0, dtype=bool)
+
+        keep = np.ones(len(media), dtype=bool)
+        min_yaw, max_yaw = self._yaw_range
+        min_pitch, max_pitch = self._pitch_range
+        if (min_yaw, max_yaw) != (-90.0, 90.0):
+            yaw = Batch3D.yaw(rot)
+            keep &= (yaw >= min_yaw) & (yaw <= max_yaw)
+        if (min_pitch, max_pitch) != (-90.0, 90.0):
+            pitch = Batch3D.pitch(rot)
+            keep &= (pitch >= min_pitch) & (pitch <= max_pitch)
+        return keep
+
+    def _should_output_pose(self, media: FrameFaces) -> tuple[npt.NDArray[np.bool_], int]:
+        """Test which of the faces should be saved to disk based on the yaw and pitch ranges
+
+        Parameters
+        ----------
+        media
+            The FrameFaces object output from the extraction pipeline
+
+        Returns
+        -------
+        mask
+            Mask array containing ``True`` for each face that should be output to disk
+        skipped
+            The number of faces that have been skipped due to the yaw and pitch ranges
+        """
+        mask = self._get_pose_keep_mask(media)
+        if np.all(mask):
+            return mask, 0
+        return mask, int(len(mask) - np.count_nonzero(mask))
+
     def _process_faces(self, media: FrameFaces, alignments: Alignments, is_video: bool) -> None:
         """ Process the detected face objects into aligned faces, generate the thumbnails and run
         any post process actions
@@ -932,6 +1022,9 @@ class Output:  # pylint:disable=too-many-instance-attributes
         is_video
             ``True`` if the input is a video otherwise ``False``
         """
+        pose_mask, pose_skipped = self._should_output_pose(media)
+        self._counts["pose_skip"] += pose_skipped
+        self._counts["pose_total"] += len(media)
         basename = os.path.basename(media.filename)
         faces, thumbnails = self._get_faces_and_thumbs(media)
         media.remove_image()  # Spare the RAM
@@ -941,6 +1034,7 @@ class Output:  # pylint:disable=too-many-instance-attributes
                          basename,
                          meta,
                          media.image_size,
+                         pose_mask,
                          alignments.version,
                          is_video)
         alignments_faces = [FileAlignments(**aln.__dict__, thumb=thumb)
@@ -990,12 +1084,17 @@ class Output:  # pylint:disable=too-many-instance-attributes
             logger.info("%s faces not output as they are below the minimum size of %spx. These "
                         "still exist in the alignments file.",
                         self._counts["scale_skip"], self._min_size)
+        if self._counts["pose_skip"] > 0:
+            logger.info("%s faces of %s filtered out by yaw/pitch range.",
+                        self._counts["pose_skip"], self._counts["pose_total"])
         finalize(count, T.cast(int, self._counts["faces"]), T.cast(bool, self._counts["verify"]))
         self._counts["verify"] = False
         output = None if batch_index == len(self._outputs) - 1 else self._outputs[batch_index + 1]
         self._set_saver(output)
         self._counts["faces"] = 0
         self._counts["scale_skip"] = 0
+        self._counts["pose_skip"] = 0
+        self._counts["pose_total"] = 0
         del batch.alignments
 
     def _process(self) -> None:  # noqa[C901]
