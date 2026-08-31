@@ -379,7 +379,7 @@ class ExtractArgs(ExtractConvertArgs):
                 "setting of 200 will only output faces that have been downscaled from 1024px or "
                 "above.")})
         argument_list.append({
-            "opts": ("--min-yaw"),
+            "opts": ("--min-yaw",),
             "action": Slider,
             "min_max": (0.0, 180.0),
             "rounding": 1,
@@ -393,7 +393,7 @@ class ExtractArgs(ExtractConvertArgs):
                 "fully to the left, 90 = facing straight ahead, 180 = rotated fully to the "
                 "right). Default: 0 (no filtering).")})
         argument_list.append({
-            "opts": ("--max-yaw"),
+            "opts": ("--max-yaw",),
             "action": Slider,
             "min_max": (0.0, 180.0),
             "rounding": 1,
@@ -407,7 +407,7 @@ class ExtractArgs(ExtractConvertArgs):
                 "fully to the left, 90 = facing straight ahead, 180 = rotated fully to the "
                 "right). Default: 180 (no filtering).")})
         argument_list.append({
-            "opts": ("--min-pitch"),
+            "opts": ("--min-pitch",),
             "action": Slider,
             "min_max": (0.0, 180.0),
             "rounding": 1,
@@ -421,7 +421,7 @@ class ExtractArgs(ExtractConvertArgs):
                 "rotated fully down, 90 = facing straight ahead, 180 = rotated fully up). "
                 "Default: 0 (no filtering).")})
         argument_list.append({
-            "opts": ("--max-pitch"),
+            "opts": ("--max-pitch",),
             "action": Slider,
             "min_max": (0.0, 180.0),
             "rounding": 1,
