@@ -72,6 +72,7 @@ class ManualArgs(FaceSwapArgs):
              "type": int,
              "default": 512,
              "min_max": (128, 2048),
+             "rounding": 1,
              "group": _("options"),
              "help": _(
                  "The size of the extracted face in pixels. Default is 512.")})
