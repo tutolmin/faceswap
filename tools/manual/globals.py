@@ -94,8 +94,9 @@ class TkGlobals():
     input_location: str
         The location of the input folder of frames or video file
     """
-    def __init__(self, input_location: str) -> None:
+    def __init__(self, input_location: str, size: int = 512) -> None:
         logger.debug(parse_class_init(locals()))
+        self._size = size
         self._tk_vars = self._get_tk_vars()
 
         self._is_video = self._check_input(input_location)
@@ -141,6 +142,11 @@ class TkGlobals():
     def frame_display_dims(self) -> tuple[int, int]:
         """ tuple: The (`width`, `height`) of the video display frame in pixels. """
         return self._frame_display_dims
+
+    @property
+    def size(self) -> int:
+        """ int: The size of the extracted face in pixels. """
+        return self._size
 
     @property
     def is_video(self) -> bool:

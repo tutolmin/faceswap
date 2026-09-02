@@ -444,7 +444,7 @@ class _DiskIO():
                 aligned = AlignedFace(face.landmarks_xy,
                                       image=image,
                                       centering="head",
-                                      size=512)  # TODO user selectable size
+                                      size=self._globals.size)
                 meta = PNGHeader(
                     alignments=face.to_png_meta(),
                     source=PNGSource(alignments_version=self._alignments.version,

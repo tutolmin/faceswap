@@ -65,7 +65,7 @@ class Manual(tk.Tk):
         self._validate_non_faces(arguments.frames)
 
         self._initialize_tkinter()
-        self._globals = TkGlobals(arguments.frames)
+        self._globals = TkGlobals(arguments.frames, arguments.size)
 
         extractor = Aligner(self._globals)
         self._detected_faces = DetectedFaces(self._globals,

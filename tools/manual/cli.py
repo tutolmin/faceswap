@@ -3,7 +3,7 @@
 import gettext
 
 from lib.cli.args import FaceSwapArgs
-from lib.cli.actions import DirOrFileFullPaths, FileFullPaths
+from lib.cli.actions import DirOrFileFullPaths, FileFullPaths, Slider
 from lib.utils import get_module_objects
 
 # LOCALES
@@ -65,6 +65,16 @@ class ManualArgs(FaceSwapArgs):
                 "video in parallel threads. For some videos, this causes the caching process to "
                 "hang. If this happens, then set this option to generate the thumbnails in a "
                 "slower, but more stable single thread.")})
+        argument_list.append({
+             "opts": ("--size",),
+             "action": Slider,
+             "dest": "size",
+             "type": int,
+             "default": 512,
+             "min_max": (128, 2048),
+             "group": _("options"),
+             "help": _(
+                 "The size of the extracted face in pixels. Default is 512.")})
         return argument_list
 
 
